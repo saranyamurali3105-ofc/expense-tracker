@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1772461987612,
+    "title": "Rent ",
+    "amount": 500,
+    "category": "Other",
+    "date": "2026-03-02"
+  },
+  {
+    "id": 1772462007235,
+    "title": "Breakfast",
+    "amount": 500,
+    "category": "Food",
+    "date": "2026-03-02"
+  },
+  {
+    "id": 1772462028193,
+    "title": "Dress",
+    "amount": 899,
+    "category": "Shopping",
+    "date": "2026-03-02"
+  }
+]

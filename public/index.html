@@ -1,45 +1,180 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Expense Tracker</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexTrack | Smart Finance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+    </style>
 </head>
-<body>
-    <h2>Expense Tracker</h2>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
 
-    <input id="title" placeholder="Title">
-    <input id="amount" placeholder="Amount">
-    <button onclick="addExpense()">Add</button>
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-indigo-600">NexTrack</h1>
+                <p class="text-slate-500 text-sm">Manage your finances with precision</p>
+            </div>
+            <div class="text-right">
+                <span class="text-sm text-slate-400">Total Balance</span>
+                <p class="text-2xl font-bold text-slate-800">₹<span id="totalBalance">0</span></p>
+            </div>
+        </header>
 
-    <h3>Expenses:</h3>
-    <ul id="list"></ul>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h2 class="text-xl font-semibold mb-4">Add Transaction</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase">Description</label>
+                            <input id="title" type="text" placeholder="Rent, Coffee, etc." class="w-full mt-1 p-3 bg-slate-50 border-0 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 uppercase">Amount (₹)</label>
+                                <input id="amount" type="number" placeholder="0.00" class="w-full mt-1 p-3 bg-slate-50 border-0 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 uppercase">Category</label>
+                                <select id="category" class="w-full mt-1 p-3 bg-slate-50 border-0 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                                    <option>Food</option>
+                                    <option>Transport</option>
+                                    <option>Shopping</option>
+                                    <option>Housing</option>
+                                    <option>Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase">Date</label>
+                            <input id="date" type="date" class="w-full mt-1 p-3 bg-slate-50 border-0 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                        </div>
+                        <button onclick="addExpense()" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all active:scale-95">
+                            Add Expense
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-<script>
-function addExpense() {
-    const title = document.getElementById("title").value;
-    const amount = document.getElementById("amount").value;
+            <div class="lg:col-span-1">
+                <h2 class="text-xl font-semibold mb-4 flex justify-between items-center">
+                    History
+                    <span id="itemCount" class="text-xs bg-slate-200 px-2 py-1 rounded-full">0 items</span>
+                </h2>
+                <div id="expenseList" class="space-y-3 h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                    </div>
+            </div>
 
-    fetch("/add", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({title, amount})
-    }).then(() => loadExpenses());
-}
+            <div class="lg:col-span-1">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h2 class="text-xl font-semibold mb-4">Spending Analysis</h2>
+                    <canvas id="categoryChart" width="400" height="400"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 
-function loadExpenses() {
-    fetch("/expenses")
-    .then(res => res.json())
-    .then(data => {
-        const list = document.getElementById("list");
-        list.innerHTML = "";
-        data.forEach(e => {
-            const li = document.createElement("li");
-            li.innerText = e.title + " - ₹" + e.amount;
-            list.appendChild(li);
-        });
-    });
-}
+    <script>
+        let myChart;
 
-loadExpenses();
-</script>
+        async function addExpense() {
+            const payload = {
+                title: document.getElementById("title").value,
+                amount: document.getElementById("amount").value,
+                category: document.getElementById("category").value,
+                date: document.getElementById("date").value
+            };
+
+            if(!payload.title || !payload.amount) return alert("Please fill the details");
+
+            await fetch("/api/expenses", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(payload)
+            });
+
+            // Reset inputs
+            document.getElementById("title").value = "";
+            document.getElementById("amount").value = "";
+            loadExpenses();
+        }
+
+        async function deleteExpense(id) {
+            await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+            loadExpenses();
+        }
+
+        async function loadExpenses() {
+            const res = await fetch("/api/expenses");
+            const data = await res.json();
+            
+            const list = document.getElementById("expenseList");
+            list.innerHTML = "";
+            let total = 0;
+            const categories = {};
+
+            data.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
+                total += exp.amount;
+                categories[exp.category] = (categories[exp.category] || 0) + exp.amount;
+
+                const div = document.createElement("div");
+                div.className = "group flex justify-between items-center p-4 bg-white border border-slate-100 rounded-xl hover:shadow-md transition-all";
+                div.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">
+                            ${exp.category[0]}
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-800">${exp.title}</p>
+                            <p class="text-xs text-slate-400">${exp.date} • ${exp.category}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="font-bold text-slate-700">₹${exp.amount.toLocaleString()}</span>
+                        <button onclick="deleteExpense(${exp.id})" class="opacity-0 group-hover:opacity-100 p-2 text-red-400 hover:text-red-600 transition">
+                            ✕
+                        </button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+
+            document.getElementById("totalBalance").innerText = total.toLocaleString();
+            document.getElementById("itemCount").innerText = `${data.length} items`;
+            updateChart(categories);
+        }
+
+        function updateChart(catData) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(catData),
+                    datasets: [{
+                        data: Object.values(catData),
+                        backgroundColor: ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    plugins: { legend: { position: 'bottom' } },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // Initialize with today's date
+        document.getElementById('date').valueAsDate = new Date();
+        loadExpenses();
+    </script>
 </body>
 </html>
